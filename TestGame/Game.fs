@@ -74,9 +74,7 @@ type MainGame() as self =
             UpdateTick(gameTime, keyState, mouseState)
             |> dispatch
 
-            // It's expected that a redraw is required after the update
             lastStateChangeHasBeenDrawn <- false
-            self.Draw(gameTime)
         | None -> ()
         base.Update(gameTime)
          

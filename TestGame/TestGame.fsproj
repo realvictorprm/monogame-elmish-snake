@@ -61,10 +61,6 @@
   <Import Project="$(MSBuildExtensionsPath)\MonoGame\v3.0\MonoGame.Content.Builder.targets" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="elmish\cmd.fs" />
-    <Compile Include="elmish\prelude.fs" />
-    <Compile Include="elmish\ring.fs" />
-    <Compile Include="elmish\program.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Update.fs" />
@@ -138,6 +134,13 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Elmish\Elmish.fsproj">
+      <Name>Elmish</Name>
+      <Project>{8e8e25ec-aa50-457b-92da-8d79ea464788}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
