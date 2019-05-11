@@ -9,7 +9,7 @@ namespace Elmish
 
 
 /// Program type captures various aspects of program behavior
-type Program<'arg, 'model, 'msg, 'view> = private {
+type Program<'arg, 'model, 'msg, 'view> = {
     init : 'arg -> 'model * Cmd<'msg>
     update : 'msg -> 'model -> 'model * Cmd<'msg>
     subscribe : 'model -> Cmd<'msg>

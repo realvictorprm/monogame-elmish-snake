@@ -35,6 +35,7 @@ type UserInteraction =
     | KeyDown
     | KeyLeft
     | KeyRight
+    | Esc
     
 type Collision =
     | Wall
@@ -45,9 +46,6 @@ type Collision =
 type Msg = 
     | Input of userInteraction:UserInteraction
     | TimeElapsed
-    // Messages from the main framework which cannot be changed / at least shouldn't
-    | RedrawRequested
-    | UpdateTick of time:GameTime * KeyboardState * MouseState
 
 type Model = GameState
 

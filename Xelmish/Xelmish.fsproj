@@ -1,25 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!--
- <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
- -->
   <Import Project="$(MSBuildExtensionsPath)\MonoGame\v3.0\MonoGame.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\MonoGame\v3.0\MonoGame.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>86e0a4c3-0fa3-429e-85d1-aabbc2dc3cf7</ProjectGuid>
-    <OutputType>WinExe</OutputType>
-    <RootNamespace>TestGame</RootNamespace>
-    <AssemblyName>Snake</AssemblyName>
+    <ProjectGuid>e615ad40-3056-441f-a5a1-7304a1db2188</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Xelmish</RootNamespace>
+    <AssemblyName>Xelmish</AssemblyName>
+    <UseStandardResourceNames>true</UseStandardResourceNames>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <UseStandardResourceNames>true</UseStandardResourceNames>
     <WarningsAsErrors>3239;$(WarningsAsErrors)</WarningsAsErrors>
-    <Name>TestGame</Name>
+    <Name>Xelmish</Name>
     <MonoGamePlatform>DesktopGL</MonoGamePlatform>
-    <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -28,12 +23,8 @@
     <Tailcalls>false</Tailcalls>
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <WarningLevel>4</WarningLevel>
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\$(Configuration)\$(AssemblyName).XML</DocumentationFile>
-    <Prefer32Bit>false</Prefer32Bit>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <WarningsAsErrors />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -41,12 +32,8 @@
     <Tailcalls>true</Tailcalls>
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
-    <WarningLevel>4</WarningLevel>
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\$(Configuration)\$(AssemblyName).XML</DocumentationFile>
-    <Prefer32Bit>false</Prefer32Bit>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <WarningsAsErrors />
   </PropertyGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
@@ -55,22 +42,14 @@
     <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
   </PropertyGroup>
   <Import Project="$(FSharpTargetsPath)" />
-  <PropertyGroup>
-    <ApplicationIcon>Icon.ico</ApplicationIcon>
-  </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\MonoGame\v3.0\MonoGame.Content.Builder.targets" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Model.fs" />
-    <Compile Include="Utils.fs" />
-    <Compile Include="Update.fs" />
-    <Compile Include="View.fs" />
+    <Compile Include="Viewables.fs" />
+    <Compile Include="GameLoop.fs" />
     <Compile Include="Program.fs" />
-    <None Include="App.config" />
     <Content Include="packages.config" />
-    <EmbeddedResource Include="Icon.ico" />
-    <EmbeddedResource Include="Icon.bmp" />
-    <MonoGameContentReference Include="Content\Content.mgcb" />
     <None Include="$(MonoGameInstallDirectory)\MonoGame\v3.0\Assemblies\DesktopGL\x86\SDL2.dll">
       <Link>x86\SDL2.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -115,7 +94,6 @@
       <Link>MonoGame.Framework.dll.config</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="app.manifest" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">
@@ -126,23 +104,17 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.ValueTuple">
+      <HintPath>..\packages\System.ValueTuple.4.4.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="MonoGame.Framework">
       <HintPath>$(MonoGameInstallDirectory)\MonoGame\v3.0\Assemblies\DesktopGL\MonoGame.Framework.dll</HintPath>
     </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Elmish\Elmish.fsproj">
       <Name>Elmish</Name>
       <Project>{8e8e25ec-aa50-457b-92da-8d79ea464788}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Xelmish\Xelmish.fsproj">
-      <Name>Xelmish</Name>
-      <Project>{e615ad40-3056-441f-a5a1-7304a1db2188}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
