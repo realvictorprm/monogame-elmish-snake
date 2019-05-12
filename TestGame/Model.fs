@@ -18,15 +18,42 @@ type Direction =
     | Down
     | Left
     | Right
-    
+
+[<NoComparison>]
+type StaticEntity =
+| Stone of stonePos:Point
+| RiverPart of riverPos:Point
+| Bridge of bridgePos:Point
+| Food of foodPos:Point
+| AntHill of antHilPos:Point
+
+[<NoComparison>]
+type Ant =
+| DefaultAnt of Point
+| FightingAnt of Point
+
+[<NoComparison>]
+type MovingEntity = | MovingEntity of Ant
+
+type Selection = Point * Point
+
 type InGameModel = {
-    snakeParts: Position list
-    food: Position
-    direction: Direction
-    oldDirection: Direction
-}
+    ants:Ant list
+    antHills: Position list
+    camera: Vector2
+    selection: Selection option
+} with
+    static member Empty = {
+        ants = [ for i in 0..100 -> DefaultAnt(Point(-i * 10, -i * 10)) ]
+        antHills = [ ]
+        camera = Vector2.Zero
+        selection = None
+    }
+
+
 type GameState =
     | GameOver
+    | GameIsInMainScreen
     | GameIsRunning of InGameModel
 
 [<Struct>]
@@ -41,22 +68,49 @@ type Collision =
     | Wall
     | Food of newFoodPosition:Position
     | Tail of remainingSnakeParts:Position list
-    
+
+[<Struct>]
+type MainMenuMsg =
+    | StartGame
+    | ExitGame
+
+[<Struct>]
+type InGameMessage =
+| AntsSelected
+| AntsCreated
+| AntTypeSelected
+| AntTargetChosen
+| AutomaticBehaviourSelected
+| AntSelectFood
+| AntGoResearch
+| HillUpgradeSelected
+| UpdateTick of GameTime * Input.KeyboardState * MouseState
+| ExitPressed
+| RedrawRequested
+| ColorChanged of Color
+
+type Actions =
+// Collision detection / In range detection
+| AntInFight
+// Could be a performance problem
+| AntDying
+
+[<Struct>]
+type InGameMsg =
+    | UserInteraction of UserInteraction
+    | SelectionStarted of start:Point
+    | SelectionOngoing of corner:Point
+    | SelectionEnded of pEnd:Point
+
 [<Struct>]
 type Msg = 
-    | Input of userInteraction:UserInteraction
+    | MainMenuMsg of mainMenu:MainMenuMsg
+    | InGameMsg of inGame:InGameMsg
     | TimeElapsed
 
-type Model = GameState
-
 [<Struct>]
-[<NoComparison>]
-type Content = {
-    spriteBatch: SpriteBatch
-    font: SpriteFont
-    rect: Texture2D
-} with 
-    interface IDisposable with
-        override self.Dispose() =
-            self.spriteBatch.Dispose()
-            self.rect.Dispose()
+type Model = {
+    mutable gameState: GameState
+    assets: Xelmish.Model.LoadedAssets
+    screenSize: Point
+}

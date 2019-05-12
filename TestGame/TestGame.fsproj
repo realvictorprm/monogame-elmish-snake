@@ -9,7 +9,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>86e0a4c3-0fa3-429e-85d1-aabbc2dc3cf7</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <RootNamespace>TestGame</RootNamespace>
     <AssemblyName>Snake</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
@@ -63,6 +63,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Utils.fs" />
+    <Compile Include="UserInterfaceBase.fs" />
     <Compile Include="Update.fs" />
     <Compile Include="View.fs" />
     <Compile Include="Program.fs" />

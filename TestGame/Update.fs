@@ -11,134 +11,68 @@ open Microsoft.Xna.Framework.Input
 
 let random = new System.Random()
 
-let worldWidth = 20
-let worldHeight = 20
+let worldWidth = 1000.f
+let worldHeight = 1000.f
 
-let tryGetCollision model =
-    let head = model.snakeParts |> List.head
-    // Yummy food!
-    if head.X = model.food.X &&
-        head.Y = model.food.Y then
-        { X = random.Next(worldWidth)
-          Y = random.Next(worldHeight)}
-        |> Collision.Food
-        |> Some
-    // We're biting us!
-    else
-        let possibleBitingPoint =
-            model.snakeParts
-            |> List.tail
-            |> List.tryFindIndex(fun e -> e.X = head.X && e.Y = head.Y)
-        match possibleBitingPoint with
-        | Some index ->
-            model.snakeParts
-            |> List.take index
-            |> Collision.Tail
-            |> Some
-        | None ->
-            if head.X < 0 ||
-                head.Y < 0 ||
-                head.Y >= worldHeight ||
-                head.X >= worldWidth then
-                Collision.Wall
-                |> Some
-            else
-                None
+let cameraInWorld (vector:Vector2) =
+    vector.X >= 0.f && vector.Y >= 0.f &&
+        vector.X <= worldWidth &&
+        vector.Y <= worldHeight
 
-let updateGameIsRunning msg model =
-    match msg with
-    | Input userInteraction ->
-        let isValidNewDirection oldDirection newDirection =
-            match oldDirection, newDirection with
-            | Up, Down
-            | Down, Up
-            | Right, Left
-            | Left, Right -> false
-            | _ -> true
-        let newDirection =
-            match userInteraction with
-            | KeyUp -> Up
-            | KeyDown -> Down
-            | KeyLeft -> Left
-            | KeyRight -> Right
-            | Esc -> exit 0
-        if isValidNewDirection model.oldDirection newDirection then
-            { model with direction = newDirection }
-        else
-            model
-        |> GameIsRunning, Cmd.none
-    | TimeElapsed ->
-        let currentDirection = model.direction
-        let oldDirection = model.direction
-        let newSnakePartsPositions =
-            let remainingParts =
-                model.snakeParts
-                |> List.rev
-                |> List.tail
-                |> List.rev
-            let xPlus, yPlus =
-                currentDirection
-                |> getTranslationFromDirection
-            let oldHead =
-                model.snakeParts
-                |> List.head
-            let newHead = {
-                X = oldHead.X + xPlus
-                Y = oldHead.Y + yPlus
-            }
-            newHead :: remainingParts
-        // Collision detection
-        let preCollisionModel =
-            { model with
-                snakeParts = newSnakePartsPositions
-                direction = currentDirection
-                oldDirection = currentDirection }
-        match tryGetCollision preCollisionModel with
-        | Some collision ->
-            match collision with
-            | Wall -> GameOver, Cmd.none
-            | Food newFoodPosition ->
-                let lastElement =
-                    let defaultLastElement () =
-                        let newHead =
-                            preCollisionModel.snakeParts
-                            |> List.head
-                        let xPlus, yPlus =
-                            currentDirection
-                            |> getInvertedDirection 
-                            |> getTranslationFromDirection
-                        {   X = newHead.X + xPlus
-                            Y = newHead.Y + yPlus }
-                    model.snakeParts
-                    |> List.rev
-                    |> List.tryHead
-                    |> (function | Some a -> a | None -> defaultLastElement ())
-                { preCollisionModel with
-                    snakeParts = [lastElement] |> List.append preCollisionModel.snakeParts
-                    food = newFoodPosition }
-                |> GameIsRunning, Cmd.none
-            | Tail remainingSnakeParts ->
-                { preCollisionModel with 
-                    snakeParts = remainingSnakeParts }
-                |> GameIsRunning, Cmd.none
-        | None ->
-            preCollisionModel
+let update msg model : Model.Model * Cmd<Msg> =
+    match model.gameState with
+    | GameIsRunning model ->
+        match msg with
+        | InGameMsg(UserInteraction key) ->
+            let cameraTranslation =
+                match key with
+                | Esc -> exit 0
+                | KeyUp -> Vector2(0.f, 10.f)
+                | KeyDown -> Vector2(0.f, -10.f)
+                | KeyLeft -> Vector2(10.f, 0.f)
+                | KeyRight -> Vector2(-10.f, 0.f)
+            let newPos = 
+                match Vector2.Add(model.camera, cameraTranslation) with
+                | newPos when cameraInWorld(newPos) -> newPos
+                | _ -> model.camera
+
+            { model with camera = newPos }
             |> GameIsRunning, Cmd.none
-
-let update msg gameState : Model.Model * Cmd<Msg> =
-    match gameState with
-    | GameIsRunning(model) -> updateGameIsRunning msg model
+        | InGameMsg(SelectionStarted pos) ->
+            { model with selection = (pos, pos) |> Some }
+            |> GameIsRunning, Cmd.none
+        | InGameMsg(SelectionOngoing endPos) ->
+            match model.selection with 
+            | Some(startPos, _) ->
+                { model with selection = (startPos, endPos)|> Some }
+                |> GameIsRunning, Cmd.none
+            | None -> GameIsRunning model, Cmd.none
+        | InGameMsg(SelectionEnded endPos) ->
+            // Good point to handle finding out which entities lie within the selection
+            match model.selection with
+            | Some(startPos, _) ->
+                // { model with selection = (startPos, endPos)|> Some }
+                { model with selection = None }
+                |> GameIsRunning, Cmd.none
+            | None -> GameIsRunning model, Cmd.none
+        | TimeElapsed
+        | MainMenuMsg _ ->
+            GameIsRunning model, Cmd.none
     | GameOver -> GameOver, Cmd.none
+    | GameIsInMainScreen -> 
+        match msg with
+        | MainMenuMsg StartGame ->
+            model.assets.sounds.["bang"].Play() |> ignore
+            GameIsRunning(InGameModel.Empty), Cmd.none
+        | MainMenuMsg ExitGame ->
+            exit 0, Cmd.none
+        | _ -> GameIsInMainScreen, Cmd.none
+    |> (fun (state, cmd) -> { model with gameState = state }, cmd)
 
-let initialModel =
-    { snakeParts = [for i in 0..5 -> {X = 5; Y = 5 + i}]
-      direction = Right
-      food = {X = 10; Y = 10}
-      oldDirection = Up }
-    |> GameIsRunning
+let initialModel = GameIsInMainScreen
 
-let init () : GameState * Cmd<_> =
-    initialModel, Cmd.none
+let init screenSize loadedAssets : Model.Model * Cmd<_> =
+    { gameState = initialModel; assets = loadedAssets; screenSize=screenSize}, Cmd.none
 
 let timerSubscription dispatch =
     async {
