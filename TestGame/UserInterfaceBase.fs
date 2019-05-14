@@ -17,6 +17,7 @@ module Model =
         Y:int
     } with
         static member Zero = {X=0;Y=0}
+        member self.ToPoint = Point(self.X, self.Y)
 
     [<Struct>]
     type TextContent = {
@@ -37,7 +38,7 @@ module Model =
         | Border of color:BorderStyle * thickness:int * inner:Element
         | VerticalListBox of offset:Offset * e:Element list
         | HorizontalListBox of offset:Offset * e:Element list
-        | CustomElement of Rectangle * cstmDraw:TickFun
+        | CustomElement of Rectangle * cstmDraw:(Offset -> TickFun)
         with
             member self.Rectangle =
                 match self with
@@ -137,14 +138,14 @@ open ExternalCode
             
 //    ()
     
-let nest elements =
-    OnDraw(fun loadedAssets input spriteBatch ->
-        elements
-        |> List.iter(function
-            | OnDraw fn -> fn loadedAssets input spriteBatch
-            | OnUpdate fn -> fn input
-        )
-    )
+//let nest elements =
+//    OnDraw(fun loadedAssets input spriteBatch ->
+//        elements
+//        |> List.iter(function
+//            | OnDraw fn -> fn loadedAssets input spriteBatch
+//            | OnUpdate fn -> fn input
+//        )
+//    )
 
 let mkTextPanel data font fontSize offset =
     let width = data.rectangle.Width
@@ -161,7 +162,7 @@ let mkTextPanel data font fontSize offset =
             yield
                 text font fontSize info.color (-0.5, -0.5) info.text (x + width/2, y+height/2) width
         | None -> ()
-    ] |> nest
+    ]
 
 let mkButton data event font fontSize offset =
     let width = data.rectangle.Width
@@ -178,32 +179,32 @@ let mkButton data event font fontSize offset =
             yield
                 text font fontSize info.color (-0.5, -0.5) info.text (x + width/2, y+height/2) width
         | None -> ()
-    ] |> nest
+    ]
 
 let createViewableFromTree defaultFontName defaultFontSize tree =
     let rec drawElement elements offset =
         match elements with
         | Model.Button(data, fn) ->
-            [ mkButton data fn defaultFontName defaultFontSize offset ]
+            mkButton data fn defaultFontName defaultFontSize offset
         | Model.Text(data) ->
-            [ mkTextPanel data defaultFontName defaultFontSize offset ]
+            mkTextPanel data defaultFontName defaultFontSize offset
         | Model.Border(color, thickness, inner) ->
                 
             // Non in place border
-            //let width = inner.Rectangle.Width + thickness * 2
-            //let height = inner.Rectangle.Height + thickness * 2
-            //let newOffset =
-            //    let x = inner.Rectangle.X + thickness
-            //    let y = inner.Rectangle.Y + thickness
-            //    { X=x + offset.X; Y=y + offset.Y }
-                
-            // In-place border
-            let width = inner.Rectangle.Width
-            let height = inner.Rectangle.Height
+            let width = inner.Rectangle.Width + thickness * 2
+            let height = inner.Rectangle.Height + thickness * 2
             let newOffset =
                 let x = inner.Rectangle.X + thickness
                 let y = inner.Rectangle.Y + thickness
                 { X=x + offset.X; Y=y + offset.Y }
+                
+            // In-place border
+            //let width = inner.Rectangle.Width
+            //let height = inner.Rectangle.Height
+            //let newOffset =
+            //    let x = inner.Rectangle.X + thickness
+            //    let y = inner.Rectangle.Y + thickness
+            //    { X=x + offset.X; Y=y + offset.Y }
             [   yield colour color (width, height) (inner.Rectangle.X + offset.X, inner.Rectangle.Y + offset.Y)
                 yield! drawElement inner newOffset
             ]
@@ -234,7 +235,7 @@ let createViewableFromTree defaultFontName defaultFontSize tree =
             ) ([], newOffset)
             |> fst
         | Model.CustomElement(_, cstmDraw) ->
-            [ OnDraw(cstmDraw) ]
+            [ OnDraw(cstmDraw offset) ]
     drawElement tree { X=0;Y=0 }
 
 /// Run the given event if the left mouse button has just been pressed in the specified area

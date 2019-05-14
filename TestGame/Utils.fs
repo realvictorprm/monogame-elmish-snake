@@ -21,6 +21,26 @@ module Math =
         let cy = float32 rectangle.Y
         ((px - cx) ** 2.f / rx ** 2.f) + ((py - cy) ** 2.f / ry ** 2.f) <= 1.0f
 
+module Vector2 =
+    let inline add a b = Vector2.Add(a, b)
+    let inline multiply (a:Vector2) (b:Vector2) = Vector2.Multiply(a, b)
+    let inline divide (a:Vector2) (b:Vector2) = Vector2.Divide(a, b)
+
+[<RequireQualifiedAccess>]
+type Vector2Operators =
+     static member inline (*) (a:Vector2, b:Vector2) = Vector2.Multiply(a, b)
+     static member inline (+) (a:Vector2, b:Vector2) = Vector2.Add(a, b)
+     static member inline (-) (a:Vector2, b:Vector2) = Vector2.Subtract(a, b)
+     static member inline (/) (a:Vector2, b:Vector2) = Vector2.Divide(a, b)
+     static member inline (/) (a:Vector2, b:float32) = Vector2.Divide(a, b)
+
+[<RequireQualifiedAccess>]
+type MatrixOperators =
+     static member inline (*) (a:Matrix, b:Matrix) = Matrix.Multiply(a, b)
+
+let inline vec2 a b = Vector2(a, b)
+
+
 let getTranslationFromDirection direction =
     match direction with
     | Up -> 0, -1
@@ -34,3 +54,4 @@ let getInvertedDirection direction =
     | Left -> Right
     | Down -> Up
     | Right -> Left
+

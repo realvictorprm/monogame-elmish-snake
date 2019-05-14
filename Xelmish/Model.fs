@@ -84,7 +84,7 @@ type LoadedAssets = {
 /// Each is given the set of loaded assets (e.g. textures) and the spriteBatch object if drawable to draw with, or
 /// the current input state if on update.
 /// In the Viewables module, there are functions that create viewables for common tasks, like drawing colours or images.
-type Viewable = 
+type ViewableOrInteraction = 
     | OnDraw of (LoadedAssets -> Inputs -> SpriteBatch -> unit)
     | OnUpdate of (Inputs -> unit)
 
@@ -92,4 +92,4 @@ type Viewable =
 type QuitGame() =
     inherit System.Exception()
 
-let exit () = raise (QuitGame ())
+// let exit () = raise (QuitGame ())

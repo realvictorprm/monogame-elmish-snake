@@ -28,28 +28,48 @@ type StaticEntity =
 | AntHill of antHilPos:Point
 
 [<NoComparison>]
+[<Struct>]
 type Ant =
-| DefaultAnt of Point
-| FightingAnt of Point
+| DefaultAnt of d:Point
+| FightingAnt of f:Point
+with
+    member self.Position =
+        match self with
+        | DefaultAnt pos
+        | FightingAnt pos -> pos
 
 [<NoComparison>]
 type MovingEntity = | MovingEntity of Ant
 
 type Selection = Point * Point
 
+type Camera = {
+    position: Vector2
+    bounds: Rectangle
+} with
+    member self.Translate vec =
+        { self with position = Vector2.Add(vec, self.position) }
+
+    static member Default =
+        { position = Vector2.Zero 
+          bounds = Rectangle(0, 0, 100, 100) }
+
+[<Struct>]
 type InGameModel = {
     ants:Ant list
     antHills: Position list
-    camera: Vector2
+    camera: Camera
     selection: Selection option
 } with
     static member Empty = {
-        ants = [ for i in 0..100 -> DefaultAnt(Point(-i * 10, -i * 10)) ]
+        ants =
+            [ for x in 0..99 do
+                for y in 0..99 do
+                    yield DefaultAnt(Point(x * 10, y * 10)) ]
         antHills = [ ]
-        camera = Vector2.Zero
+        camera = Camera.Default
         selection = None
     }
-
 
 type GameState =
     | GameOver
@@ -75,6 +95,13 @@ type MainMenuMsg =
     | ExitGame
 
 [<Struct>]
+type UpdateTickMsg = {
+    gameTime:GameTime
+    keyboardState:Input.KeyboardState
+    mouseState:MouseState 
+}
+
+[<Struct>]
 type InGameMessage =
 | AntsSelected
 | AntsCreated
@@ -84,10 +111,10 @@ type InGameMessage =
 | AntSelectFood
 | AntGoResearch
 | HillUpgradeSelected
-| UpdateTick of GameTime * Input.KeyboardState * MouseState
+| UpdateTick of updateTick:UpdateTickMsg
 | ExitPressed
 | RedrawRequested
-| ColorChanged of Color
+| ColorChanged of colorChanged:struct {| colorChangedColor:Color |}
 
 type Actions =
 // Collision detection / In range detection
@@ -101,12 +128,12 @@ type InGameMsg =
     | SelectionStarted of start:Point
     | SelectionOngoing of corner:Point
     | SelectionEnded of pEnd:Point
+    | UpdateTick of gameTime:GameTime
 
 [<Struct>]
 type Msg = 
     | MainMenuMsg of mainMenu:MainMenuMsg
     | InGameMsg of inGame:InGameMsg
-    | TimeElapsed
 
 [<Struct>]
 type Model = {

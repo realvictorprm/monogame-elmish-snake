@@ -3,6 +3,7 @@ open Xelmish.Model
 open Xelmish.Viewables
 open Update
 open View
+open Microsoft.Xna.Framework
 
 // The comments should explain everything necessary, for basic F# questions or
 // if you're generally interested in F# learn more about F# at http://fsharp.org
@@ -22,7 +23,10 @@ let main argv =
         stretchMode = StretchMode.Blended
     }
 
-    Program.mkProgram (Microsoft.Xna.Framework.Point(width, height) |> init) update view // standard, out of the box Elmish initialisation
+    let adaptedInit = Microsoft.Xna.Framework.Point(width, height) |> init
+    let adaptedView model dispatch = viewAndInteractions model dispatch
+
+    Program.mkProgram adaptedInit update viewAndInteractions // standard, out of the box Elmish initialisation
     // |> Program.withConsoleTrace // standard, out of the box Elmish console tracing.
     |> Program.withSubscription(fun _ -> subscriptions)
     |> Xelmish.Program.runGameLoop config // Xelmish specific run function

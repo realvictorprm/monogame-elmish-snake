@@ -9,7 +9,7 @@ open Microsoft.Xna.Framework.Media
 open Model
 
 /// GameLoop is an inherited implementation of XNA's Game class
-type GameLoop (config: GameConfig) as this = 
+type GameLoop (config: GameConfig, startProgramFn) as this = 
     inherit Game ()
 
     let graphics = new GraphicsDeviceManager (this)
@@ -104,6 +104,7 @@ type GameLoop (config: GameConfig) as this =
         // we create one, a single white pixel, that can be resized and coloured as needed.
         loadedAssets.whiteTexture.SetData<Color> [| Color.White |]
         assets <- List.fold loadIntoAssets loadedAssets config.assetsToLoad
+        startProgramFn assets
 
     override __.Update gameTime =
         // update inputs. last keyboard and mouse state are preserved so changes can be detected
