@@ -91,7 +91,8 @@ let drawInGameScreen model assets inputs (spriteBatch:SpriteBatch) =
     
     for kind in MovingEntity.Cases do
         let currentColor = getAntColor kind
-        for (id, pos) in model.world.MovingEntitiesAsList kind do
+        for (id, _, x, y) in model.world.MovingEntitiesAsListWithPos kind do
+            let pos = Point(x, y)
             spriteBatch.Draw(assets.whiteTexture,
                 Rectangle((pos.ToVector2() - (model.camera.position - vec2 worldWidth worldHeight / 2.f)).ToPoint(),
                     Point(20, 20)
@@ -154,8 +155,8 @@ module GUI =
                 |> Vector2.multiply (Vector2(width |> float32, height |> float32))
                 |> Vector2.add (Vector2(currentOffset.X |> float32, currentOffset.Y |> float32))
             for kind in MovingEntity.Cases do
-                for (id, pos) in inGameModel.world.MovingEntitiesAsList kind do
-                    let antPosOnMap = pos.ToVector2() |> worldPosToMapPos
+                for (id, _, x, y) in inGameModel.world.MovingEntitiesAsListWithPos kind do
+                    let antPosOnMap = Point(x, y).ToVector2() |> worldPosToMapPos
                     spriteBatch.Draw(assets.whiteTexture, antPosOnMap, getAntColor kind)
                 
         ) |> defaultBorder
@@ -200,7 +201,8 @@ module GUI =
                             content = Some {
                                 color = Color.Black
                                 text =
-                                    inGameModel.world.MovingEntityCount WorkerAnt
+                                    MovingEntity(WorkerAnt)
+                                    |> inGameModel.world.EntityCount 
                                     |> sprintf "Anzahl Arbeiterameisen: %d" 
                                 }
                         } |> defaultBorder
@@ -210,7 +212,8 @@ module GUI =
                             content = Some {
                                 color = Color.Black
                                 text = 
-                                    inGameModel.world.MovingEntityCount FightingAnt
+                                    MovingEntity(FightingAnt)
+                                    |> inGameModel.world.EntityCount
                                     |> sprintf "Anzahl Kaempferameisen: %d"
                                 }
                         } |> defaultBorder
@@ -219,8 +222,9 @@ module GUI =
                             color = Color.Green
                             content = Some {
                                 color = Color.Black
-                                text = 
-                                    inGameModel.world.MovingEntityCount ResearchAnt
+                                text =
+                                    MovingEntity(ResearchAnt)
+                                    |> inGameModel.world.EntityCount
                                     |> sprintf "Anzahl Forscherameisen: %d"
                                 }
                         } |> defaultBorder

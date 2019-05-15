@@ -22,20 +22,20 @@ let cameraInWorld (vector:Vector2) =
 let updateInGameModel msg (model:InGameModel) : Model.GameState * Cmd<Msg> =
     match msg with
     | UserInteraction key ->
-    let cameraTranslation =
-        match key with
-        | DoExitGame -> exit 0
-        | CameraUp -> Vector2(0.f, -10.f)
-        | CameraDown -> Vector2(0.f, 10.f)
-        | CameraLeft -> Vector2(-10.f, 0.f)
-        | CameraRight -> Vector2(10.f, 0.f)
-    let newCamera = 
-        match model.camera.Translate cameraTranslation with
-        | newCamera when cameraInWorld(newCamera.position) -> newCamera
-        | _ -> model.camera
+        let cameraTranslation =
+            match key with
+            | DoExitGame -> exit 0
+            | CameraUp -> Vector2(0.f, -10.f)
+            | CameraDown -> Vector2(0.f, 10.f)
+            | CameraLeft -> Vector2(-10.f, 0.f)
+            | CameraRight -> Vector2(10.f, 0.f)
+        let newCamera = 
+            match model.camera.Translate cameraTranslation with
+            | newCamera when cameraInWorld(newCamera.position) -> newCamera
+            | _ -> model.camera
 
-    { model with camera = newCamera }
-    |> GameIsRunning, Cmd.none
+        { model with camera = newCamera }
+        |> GameIsRunning, Cmd.none
     | SelectionStarted pos ->
         { model with viewModel = { selection = (pos, pos) |> Some }}
         |> GameIsRunning, Cmd.none
@@ -54,8 +54,11 @@ let updateInGameModel msg (model:InGameModel) : Model.GameState * Cmd<Msg> =
             |> GameIsRunning, Cmd.none
         | None -> GameIsRunning model, Cmd.none
     | UpdateTick currentGameTime ->
-        
-        model |> GameIsRunning, Cmd.none
+        let newCounter = (model.counter + 1) % 20
+        for entity, id, vector in model.movingEntities |> Array.take 1 do
+            model.world.MoveEntity(entity |> MovingEntity, id, newCounter * (vector.X |> int32), newCounter * (vector.Y |> int32))
+            |> ignore
+        { model with counter = newCounter } |> GameIsRunning, Cmd.none
 
 let updateMainMenu msg (model:Model.Model) =
     match msg with
@@ -70,14 +73,21 @@ let updateMainMenu msg (model:Model.Model) =
             }
         let maxI = 100 - 1
         let factor = 10
+        let movingEntities =
+            [|
+                for i in 0..maxI do
+                    match inGameModel.world.AddEntity(WorkerAnt|> MovingEntity, i * factor, i * factor, MovingEntityData()) with
+                    | Some id ->
+                        yield
+                            WorkerAnt,
+                            id,
+                            Vector2(10.0f, 20.0f)
+                    | _ -> ()
+            |]
         for i in 0..maxI do
-            inGameModel.world.AddMovingEntity(WorkerAnt, Point(i * factor, i * factor))
+            inGameModel.world.AddEntity(FightingAnt |> MovingEntity, i * factor, maxI * factor - i * factor, MovingEntityData())
             |> ignore
-        for i in 0..maxI do
-            inGameModel.world.AddMovingEntity(FightingAnt, Point(i * factor, maxI * factor - i * factor))
-            |> ignore
-
-        GameIsRunning(inGameModel), Cmd.none
+        GameIsRunning({ inGameModel with movingEntities = movingEntities}), Cmd.none
     | ExitGame ->
         exit 0, Cmd.none
 
