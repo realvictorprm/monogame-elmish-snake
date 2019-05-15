@@ -19,7 +19,6 @@ type Direction =
     | Left
     | Right
 
-[<NoComparison>]
 type StaticEntity =
 | Stone of stonePos:Point
 | RiverPart of riverPos:Point
@@ -27,21 +26,19 @@ type StaticEntity =
 | Food of foodPos:Point
 | AntHill of antHilPos:Point
 
-[<NoComparison>]
-[<Struct>]
-type Ant =
-| DefaultAnt of d:Point
-| FightingAnt of f:Point
+type MovingEntity =
+| WorkerAnt
+| FightingAnt
+| ResearchAnt
+
 with
-    member self.Position =
-        match self with
-        | DefaultAnt pos
-        | FightingAnt pos -> pos
+    static member Cases = [
+        WorkerAnt
+        FightingAnt
+        ResearchAnt
+    ]
 
-[<NoComparison>]
-type MovingEntity = | MovingEntity of Ant
-
-type Selection = Point * Point
+type ViewSelection = Point * Point
 
 type Camera = {
     position: Vector2
@@ -54,20 +51,120 @@ type Camera = {
         { position = Vector2.Zero 
           bounds = Rectangle(0, 0, 100, 100) }
 
-[<Struct>]
+type FastIdStore<'T>() =
+    let entityIdToInnerIdDict = System.Collections.Generic.Dictionary<_,_>()
+    let innerIdToEntityIdDict = System.Collections.Generic.Dictionary<_,_>()
+    let idStore = ResizeArray()
+
+    member __.Add(data:'T) =
+        let id = idStore.Count
+        idStore.Add(data)
+        entityIdToInnerIdDict.Add(id, id)
+        innerIdToEntityIdDict.Add(id, id)
+        id
+
+    member __.Remove(publicId) =
+        if entityIdToInnerIdDict.ContainsKey publicId then
+            let innerId = entityIdToInnerIdDict.[publicId]
+            let lastIndex = idStore.Count - 1
+            
+            // Swap the innerId with the lastIndex to achieve
+            // a O(1) remove
+            let temp = idStore.[lastIndex]
+            idStore.[lastIndex] <- idStore.[innerId]
+            idStore.[innerId] <- temp
+            idStore.RemoveAt(lastIndex)
+
+            // Remove the public id from the entityId dictionary
+            entityIdToInnerIdDict.Remove(publicId) |> ignore
+
+            // Correct the id mapping of the public id of lastIndex
+            // and remove the entry for the innerId in the innerIdToEntityIdDict
+            let lastIndexPublicId = innerIdToEntityIdDict.[lastIndex]
+            entityIdToInnerIdDict.[lastIndexPublicId] <- innerId
+            innerIdToEntityIdDict.Remove(innerId) |> ignore
+            true
+        else
+            false
+
+    member self.Item
+        with get(id) =
+            match entityIdToInnerIdDict.TryGetValue id with
+            | true, innerId -> idStore.[innerId] |> Some
+            | false, _ -> None
+        and set id (data:'T) =
+            match entityIdToInnerIdDict.TryGetValue id with
+            | true, innerId -> idStore.[innerId] <- data
+            | false, _ ->
+                sprintf "id %d was not found and can not be set." id
+                |> System.Collections.Generic.KeyNotFoundException
+                |> raise
+
+    member self.Count = idStore.Count
+
+    interface System.Collections.Generic.IEnumerable<struct(int * 'T)> with
+        member this.GetEnumerator() :  System.Collections.IEnumerator =
+            seq {
+                for i=0 to idStore.Count - 1 do
+                    yield struct(entityIdToInnerIdDict.[i], idStore.[i])
+            } :?> _
+
+        member __.GetEnumerator() : System.Collections.Generic.IEnumerator<struct(int * 'T)> =
+            seq {
+                for publicId=0 to idStore.Count - 1 do
+                    let innerId = entityIdToInnerIdDict.[publicId]
+                    yield struct(publicId, idStore.[innerId])
+            } :?> _
+
+type MovingEntityData = Point
+type EntityId = int
+type EntitySelection = Map<MovingEntity, EntityId[]>
+
+type World(worldWidth, worldHeight) =
+
+    let movableEntityStore = System.Collections.Generic.Dictionary<MovingEntity, FastIdStore<MovingEntityData>>()
+
+    do
+        for kind in MovingEntity.Cases do
+            movableEntityStore.[kind] <- FastIdStore()
+
+    member __.AddMovingEntity(kind:MovingEntity, data:MovingEntityData) : EntityId =
+        let id = movableEntityStore.[kind].Add data
+        id
+
+    member __.RemoveMovingEntity(kind:MovingEntity, id:EntityId) =
+        movableEntityStore.[kind].Remove id
+        
+    member __.SetMovingEntity(kind:MovingEntity, id, data:MovingEntityData) =
+        movableEntityStore.[kind].[id] <- data
+
+    member __.MovingEntityCount(kind:MovingEntity) = movableEntityStore.[kind].Count
+
+    member __.MovingEntityCompleteCount
+        with get() =
+            let mutable sum = 0
+            for kind in MovingEntity.Cases do
+                sum <- sum + movableEntityStore.[kind].Count
+            sum
+
+    member __.MovingEntitiesAsList(kind:MovingEntity) = movableEntityStore.[kind] :> System.Collections.Generic.IEnumerable<struct(EntityId * MovingEntityData)>
+
+type ViewModel = {
+    selection: ViewSelection option
+}
+
 type InGameModel = {
-    ants:Ant list
-    antHills: Position list
+    world: World
     camera: Camera
-    selection: Selection option
+    viewModel : ViewModel
+    selection: EntitySelection option
 } with
     static member Empty = {
-        ants =
-            [ for x in 0..99 do
-                for y in 0..99 do
-                    yield DefaultAnt(Point(x * 10, y * 10)) ]
-        antHills = [ ]
+        world = World(100, 100)
         camera = Camera.Default
+        viewModel = {
+            selection = None
+        }
         selection = None
     }
 
@@ -76,13 +173,12 @@ type GameState =
     | GameIsInMainScreen
     | GameIsRunning of InGameModel
 
-[<Struct>]
 type UserInteraction =
-    | KeyUp
-    | KeyDown
-    | KeyLeft
-    | KeyRight
-    | Esc
+    | CameraUp
+    | CameraDown
+    | CameraLeft
+    | CameraRight
+    | DoExitGame
     
 type Collision =
     | Wall

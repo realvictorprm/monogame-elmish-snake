@@ -22,7 +22,8 @@ let main argv =
         ]
         stretchMode = StretchMode.Blended
     }
-
+    System.Runtime.GCSettings.LatencyMode <- System.Runtime.GCLatencyMode.SustainedLowLatency
+    // System.GC.TryStartNoGCRegion(2. ** 20. |> int64, true) |> ignore
     let adaptedInit = Microsoft.Xna.Framework.Point(width, height) |> init
     let adaptedView model dispatch = viewAndInteractions model dispatch
 

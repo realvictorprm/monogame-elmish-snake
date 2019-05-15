@@ -33,7 +33,7 @@ module Model =
     }
 
     type Element =
-        | Button of btn:SimpleElement * TickFun
+        | Button of btn:SimpleElement * (Inputs -> unit)
         | Text of text:SimpleElement
         | Border of color:BorderStyle * thickness:int * inner:Element
         | VerticalListBox of offset:Offset * e:Element list
@@ -105,11 +105,11 @@ module ExternalCode =
 
     /// Run the given event if the left mouse button has just been pressed in the specified area
     let onclickWith event (width, height) (x, y) =
-        OnDraw (fun loadedAssets inputs spriteBatch -> 
+        OnUpdate (fun inputs ->
             if (inputs.mouseState.X, inputs.mouseState.Y) ||> isInside x y width height then
                 if inputs.mouseState.LeftButton = ButtonState.Pressed 
                 && inputs.lastMouseState.LeftButton <> ButtonState.Pressed then
-                    event loadedAssets inputs spriteBatch)
+                    event inputs)
 
     let text font (prefFontSize: float) colour (ox: float, oy: float) (text: string) (x, y) width =
         OnDraw (fun loadedAssets _ spriteBatch -> 
@@ -153,10 +153,7 @@ let mkTextPanel data font fontSize offset =
     let x = data.rectangle.X + offset.X
     let y = data.rectangle.Y + offset.Y
     [
-        colour data.color (width, height) (x, y)
-        // onclickWith event (width, height) (x, y)
-    ] @
-    [
+        yield colour data.color (width, height) (x, y)
         match data.content with
         | Some info ->
             yield

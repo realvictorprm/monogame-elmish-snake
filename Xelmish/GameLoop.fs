@@ -30,9 +30,10 @@ type GameLoop (config: GameConfig, startProgramFn) as this =
     // these two collections are set by the Elmish setState call
     let mutable updatable: (Inputs -> Unit) list = []
     let mutable drawable: (LoadedAssets -> Inputs -> SpriteBatch -> Unit) list = []
+    let clock = System.Diagnostics.Stopwatch.StartNew()
+    let mutable lastTime = clock.ElapsedMilliseconds
 
     do 
-        // presently Xelmish only supports windowed - fullscreen will come eventually (tm)
         match config.resolution with
         | Windowed (w, h) -> 
             graphics.PreferredBackBufferWidth <- w
@@ -107,6 +108,7 @@ type GameLoop (config: GameConfig, startProgramFn) as this =
         startProgramFn assets
 
     override __.Update gameTime =
+        lastTime <- clock.ElapsedMilliseconds
         // update inputs. last keyboard and mouse state are preserved so changes can be detected
         inputs <- 
             {   lastKeyboardState = inputs.keyboardState
@@ -117,6 +119,8 @@ type GameLoop (config: GameConfig, startProgramFn) as this =
 
         try
             for updateFunc in updatable do updateFunc inputs
+            System.GC.Collect(0, System.GCCollectionMode.Forced)
+            printfn "%d" (clock.ElapsedMilliseconds - lastTime)
         with
             // quit game is a custom exception used by elmish 
             // components to tell the game to quit gracefully

@@ -81,11 +81,24 @@ open Microsoft.Xna.Framework.Input
     ]
 *)
 
+let getAntColor = function
+    | WorkerAnt _ -> Color.Brown
+    | FightingAnt _ -> Color.Red
+    | ResearchAnt _ -> Color.Blue
+
 
 let drawInGameScreen model assets inputs (spriteBatch:SpriteBatch) =
-    for ant in model.ants do
-        let pos = match ant with | DefaultAnt p | FightingAnt p -> p
-        spriteBatch.Draw(assets.whiteTexture, pos.ToVector2() - (model.camera.position - vec2 worldWidth worldHeight / 2.f), Color.RosyBrown)
+    
+    for kind in MovingEntity.Cases do
+        let currentColor = getAntColor kind
+        for (id, pos) in model.world.MovingEntitiesAsList kind do
+            spriteBatch.Draw(assets.whiteTexture,
+                Rectangle((pos.ToVector2() - (model.camera.position - vec2 worldWidth worldHeight / 2.f)).ToPoint(),
+                    Point(20, 20)
+                ),
+                currentColor)
+            
+    
     //for antHild in model.antHill do
     //    spriteBatch.Draw(assets.whiteTexture, rect pos.X pos.Y 10 10, Color.Brown)
 
@@ -111,7 +124,7 @@ module GUI =
                         text = "Play"
                         }
                     }
-                    (fun _ _ _ -> StartGame |> MainMenuMsg |> dispatch)
+                    (fun _ -> StartGame |> MainMenuMsg |> dispatch)
                     |> defaultBorder
                    
                 button {
@@ -122,7 +135,7 @@ module GUI =
                         text = "Exit"
                         }
                     }
-                    (fun _ _ _ -> ExitGame |> MainMenuMsg |> dispatch)
+                    (fun _ -> ExitGame |> MainMenuMsg |> dispatch)
                     |> defaultBorder
             ]
         let listBox = VerticalListBox({ X=0; Y=0}, elements)
@@ -134,24 +147,22 @@ module GUI =
     let private inGameMap width height inGameModel =
         CustomElement(rect 0 0 width height, fun currentOffset assets _ spriteBatch ->
             spriteBatch.Draw(assets.whiteTexture, Rectangle(currentOffset.ToPoint, Point(width, height)), Color.Green)
-            let getAntColor = function
-                | DefaultAnt _ -> Color.Brown
-                | FightingAnt _ -> Color.Red
             let antHillColor = Color.Yellow
             let worldPosToMapPos pos =
                 vec2 worldWidth worldHeight
                 |> Vector2.divide pos
                 |> Vector2.multiply (Vector2(width |> float32, height |> float32))
                 |> Vector2.add (Vector2(currentOffset.X |> float32, currentOffset.Y |> float32))
-            for ant in inGameModel.ants do
-                let antPosOnMap = ant.Position.ToVector2() |> worldPosToMapPos
-                spriteBatch.Draw(assets.whiteTexture, antPosOnMap, getAntColor ant)
+            for kind in MovingEntity.Cases do
+                for (id, pos) in inGameModel.world.MovingEntitiesAsList kind do
+                    let antPosOnMap = pos.ToVector2() |> worldPosToMapPos
+                    spriteBatch.Draw(assets.whiteTexture, antPosOnMap, getAntColor kind)
                 
         ) |> defaultBorder
 
     let possibleSelectionElement inGameModel =
         CustomElement(rect 0 0 0 0, fun _ assets _ spriteBatch ->
-            match inGameModel.selection with
+            match inGameModel.viewModel.selection with
             | Some(p0, p1) ->
                 let rectangle =
                     let x = min p0.X p1.X
@@ -181,7 +192,7 @@ module GUI =
                             color = Color.LightGreen
                             content = Some {
                                 color = Color.Black
-                                text = sprintf "Gesamtameisen: %d" inGameModel.ants.Length }
+                                text = sprintf "Gesamtameisen: %d" inGameModel.world.MovingEntityCompleteCount }
                         } |> defaultBorder
                         text {
                             rectangle = rect 0 0 defaultWidth countElementsHeight
@@ -189,9 +200,7 @@ module GUI =
                             content = Some {
                                 color = Color.Black
                                 text =
-                                    inGameModel.ants
-                                    |> List.filter(function | DefaultAnt _ -> true | _ -> false)
-                                    |> List.length
+                                    inGameModel.world.MovingEntityCount WorkerAnt
                                     |> sprintf "Anzahl Arbeiterameisen: %d" 
                                 }
                         } |> defaultBorder
@@ -200,7 +209,9 @@ module GUI =
                             color = Color.Green
                             content = Some {
                                 color = Color.Black
-                                text = "Anzahl Kaempferameisen: XX"
+                                text = 
+                                    inGameModel.world.MovingEntityCount FightingAnt
+                                    |> sprintf "Anzahl Kaempferameisen: %d"
                                 }
                         } |> defaultBorder
                         text {
@@ -208,7 +219,9 @@ module GUI =
                             color = Color.Green
                             content = Some {
                                 color = Color.Black
-                                text = "Anzahl Forscherameisen: XX"
+                                text = 
+                                    inGameModel.world.MovingEntityCount ResearchAnt
+                                    |> sprintf "Anzahl Forscherameisen: %d"
                                 }
                         } |> defaultBorder
                     ]
@@ -252,7 +265,12 @@ module GUI =
 let viewAndInteractions model dispatch =
     match model.gameState with
     | GameIsInMainScreen ->
+        let inputHandling =
+            [
+            ]
         GUI.mainScreen model.screenSize dispatch
+        @ inputHandling
+        
     | GameIsRunning inGameModel ->
         let drawGame =
             // In a seperate draw batch the in game world is drawn
@@ -270,10 +288,10 @@ let viewAndInteractions model dispatch =
                 spriteBatch.DrawString(assets.fonts.["font"], sprintf "Camera pos %A" inGameModel.camera, Vector2(100.f, 300.f), Color.Black)
             )
         let inputHandling =
-            [   whilekeydown Input.Keys.W (fun () -> KeyUp |> UserInteraction |> InGameMsg |> dispatch)
-                whilekeydown Input.Keys.S (fun () -> KeyDown |> UserInteraction |> InGameMsg |> dispatch)
-                whilekeydown Input.Keys.A (fun () -> KeyLeft |> UserInteraction |> InGameMsg |> dispatch)
-                whilekeydown Input.Keys.D (fun () -> KeyRight |> UserInteraction |> InGameMsg |> dispatch)
+            [   whilekeydown Input.Keys.W (fun () -> CameraUp |> UserInteraction |> InGameMsg |> dispatch)
+                whilekeydown Input.Keys.S (fun () -> CameraDown |> UserInteraction |> InGameMsg |> dispatch)
+                whilekeydown Input.Keys.A (fun () -> CameraLeft |> UserInteraction |> InGameMsg |> dispatch)
+                whilekeydown Input.Keys.D (fun () -> CameraRight |> UserInteraction |> InGameMsg |> dispatch)
                 OnUpdate(fun input ->
                     if input.mouseState.LeftButton = ButtonState.Pressed &&
                         input.lastMouseState.LeftButton = ButtonState.Released then

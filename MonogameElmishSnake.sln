@@ -11,8 +11,6 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Model", "Model\Model.fsproj
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "GameCore", "TestGame\GameCore.fsproj", "{86E0A4C3-0FA3-429E-85D1-AABBC2DC3CF7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdditionalGameLogic", "AdditionalGameLogic\AdditionalGameLogic.csproj", "{761FFE48-3DA1-4A01-9EBE-43E074BEEC32}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,10 +33,6 @@ Global
 		{86E0A4C3-0FA3-429E-85D1-AABBC2DC3CF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{86E0A4C3-0FA3-429E-85D1-AABBC2DC3CF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{86E0A4C3-0FA3-429E-85D1-AABBC2DC3CF7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{761FFE48-3DA1-4A01-9EBE-43E074BEEC32}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{761FFE48-3DA1-4A01-9EBE-43E074BEEC32}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{761FFE48-3DA1-4A01-9EBE-43E074BEEC32}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{761FFE48-3DA1-4A01-9EBE-43E074BEEC32}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

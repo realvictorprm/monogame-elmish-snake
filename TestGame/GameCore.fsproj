@@ -12,7 +12,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>TestGame</RootNamespace>
     <AssemblyName>AntsTheGame</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <UseStandardResourceNames>true</UseStandardResourceNames>
     <WarningsAsErrors>3239;$(WarningsAsErrors)</WarningsAsErrors>
@@ -125,21 +125,16 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-    <Reference Include="System.ValueTuple">
-      <Private>True</Private>
-    </Reference>
     <Reference Include="MonoGame.Framework">
       <HintPath>$(MonoGameInstallDirectory)\MonoGame\v3.0\Assemblies\DesktopGL\MonoGame.Framework.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ValueTuple">
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AdditionalGameLogic\AdditionalGameLogic.csproj">
-      <Name>AdditionalGameLogic</Name>
-      <Project>{761ffe48-3da1-4a01-9ebe-43e074beec32}</Project>
-      <Private>True</Private>
-    </ProjectReference>
     <ProjectReference Include="..\Elmish\Elmish.fsproj">
       <Name>Elmish</Name>
       <Project>{8e8e25ec-aa50-457b-92da-8d79ea464788}</Project>
