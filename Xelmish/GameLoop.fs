@@ -108,7 +108,7 @@ type GameLoop (config: GameConfig, startProgramFn) as this =
         startProgramFn assets
 
     override __.Update gameTime =
-        lastTime <- clock.ElapsedMilliseconds
+        //lastTime <- clock.ElapsedMilliseconds
         // update inputs. last keyboard and mouse state are preserved so changes can be detected
         inputs <- 
             {   lastKeyboardState = inputs.keyboardState
@@ -120,13 +120,14 @@ type GameLoop (config: GameConfig, startProgramFn) as this =
         try
             for updateFunc in updatable do updateFunc inputs
             System.GC.Collect(0, System.GCCollectionMode.Forced)
-            printfn "%d" (clock.ElapsedMilliseconds - lastTime)
+            // printfn "%d" (clock.ElapsedMilliseconds - lastTime)
         with
             // quit game is a custom exception used by elmish 
             // components to tell the game to quit gracefully
             | :? QuitGame -> __.Exit()
 
     override __.Draw gameTime =
+        lastTime <- clock.ElapsedMilliseconds
         Option.iter this.GraphicsDevice.Clear config.clearColour
 
         match config.stretchMode with
@@ -136,3 +137,4 @@ type GameLoop (config: GameConfig, startProgramFn) as this =
         for drawFunc in drawable do drawFunc assets inputs spriteBatch
 
         spriteBatch.End ()
+        printfn "%d" (clock.ElapsedMilliseconds - lastTime)

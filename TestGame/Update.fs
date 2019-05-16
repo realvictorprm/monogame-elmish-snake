@@ -11,38 +11,69 @@ open Microsoft.Xna.Framework.Input
 
 let random = new System.Random()
 
-let worldWidth = 1000.f
-let worldHeight = 1000.f
-
-let cameraInWorld (vector:Vector2) =
+let cameraInWorld (vector:Vector2) worldWidth worldHeight =
     vector.X >= 0.f && vector.Y >= 0.f &&
-        vector.X <= worldWidth &&
-        vector.Y <= worldHeight
+        vector.X <= float32 worldWidth &&
+        vector.Y <= float32 worldHeight
 
 let updateInGameModel msg (model:InGameModel) : Model.GameState * Cmd<Msg> =
     match msg with
     | UserInteraction key ->
-        let cameraTranslation =
-            match key with
-            | DoExitGame -> exit 0
-            | CameraUp -> Vector2(0.f, -10.f)
-            | CameraDown -> Vector2(0.f, 10.f)
-            | CameraLeft -> Vector2(-10.f, 0.f)
-            | CameraRight -> Vector2(10.f, 0.f)
-        let newCamera = 
-            match model.camera.Translate cameraTranslation with
-            | newCamera when cameraInWorld(newCamera.position) -> newCamera
-            | _ -> model.camera
-
-        { model with camera = newCamera }
+        match key with
+        | DoExitGame -> exit 0
+        | CameraZoomIn ->
+            //let zoom = if model.camera.zoom > 2. then model.camera.zoom 
+            let newZoomState =
+                match model.viewModel.zoomState with
+                | Near -> Near
+                | Middle -> Near
+                | Far -> Middle
+            let newCamera = { model.camera with zoom = Zoom.toValue newZoomState |> float32 }
+            { model with camera = newCamera; viewModel = { model.viewModel with zoomState = newZoomState }}
+        | CameraZoomOut ->
+            let newZoomState =
+                match model.viewModel.zoomState with
+                | Near -> Middle
+                | Middle -> Far
+                | Far -> Far
+            let newCamera = { model.camera with zoom = Zoom.toValue newZoomState |> float32 }
+            { model with camera = newCamera; viewModel = { model.viewModel with zoomState = newZoomState }}
+        | CameraUp -> 
+            let cameraTranslation = Vector2(0.f, -10.f)
+            let newCamera = 
+                match model.camera.Translate cameraTranslation with
+                | newCamera when cameraInWorld(newCamera.position) model.world.Width model.world.Height -> newCamera
+                | _ -> model.camera
+            { model with camera = newCamera }
+        | CameraDown -> 
+            let cameraTranslation = Vector2(0.f, 10.f)
+            let newCamera = 
+                match model.camera.Translate cameraTranslation with
+                | newCamera when cameraInWorld(newCamera.position) model.world.Width model.world.Height -> newCamera
+                | _ -> model.camera
+            { model with camera = newCamera }
+        | CameraLeft -> 
+            let cameraTranslation = Vector2(-10.f, 0.f)
+            let newCamera = 
+                match model.camera.Translate cameraTranslation with
+                | newCamera when cameraInWorld(newCamera.position) model.world.Width model.world.Height -> newCamera
+                | _ -> model.camera
+            { model with camera = newCamera }
+        | CameraRight -> 
+            let cameraTranslation = Vector2(10.f, 0.f)
+            let newCamera = 
+                match model.camera.Translate cameraTranslation with
+                | newCamera when cameraInWorld(newCamera.position) model.world.Width model.world.Height -> newCamera
+                | _ -> model.camera
+            { model with camera = newCamera }
         |> GameIsRunning, Cmd.none
     | SelectionStarted pos ->
-        { model with viewModel = { selection = (pos, pos) |> Some }}
+        { model with viewModel = { model.viewModel with selection = (pos, pos) |> Some }}
         |> GameIsRunning, Cmd.none
     | SelectionOngoing endPos ->
         match model.viewModel.selection with 
         | Some(startPos, _) ->
-            { model with viewModel = { selection = (startPos, endPos)|> Some }}
+            { model with viewModel = { model.viewModel with selection = (startPos, endPos)|> Some }}
             |> GameIsRunning, Cmd.none
         | None -> GameIsRunning model, Cmd.none
     | SelectionEnded endPos ->
@@ -50,25 +81,39 @@ let updateInGameModel msg (model:InGameModel) : Model.GameState * Cmd<Msg> =
         match model.viewModel.selection with
         | Some(startPos, _) ->
             // { model with selection = (startPos, endPos)|> Some }
-            { model with viewModel = { selection = None }}
+            { model with viewModel = { model.viewModel with selection = None }}
             |> GameIsRunning, Cmd.none
         | None -> GameIsRunning model, Cmd.none
     | UpdateTick currentGameTime ->
-        let newCounter = (model.counter + 1) % 20
-        for entity, id, vector in model.movingEntities |> Array.take 1 do
-            model.world.MoveEntity(entity |> MovingEntity, id, newCounter * (vector.X |> int32), newCounter * (vector.Y |> int32))
-            |> ignore
+        let newCounter = (model.counter + 1) % 21
+        if newCounter = 20 then
+            for entity, id, vector in model.movingEntities |> Array.take 20  do
+                let (x, y) =
+                    model.world.TryGetPosOf(entity |> MovingEntity, id)
+                    |> Option.defaultValue (10, 10)
+                if model.world.MoveEntity(entity |> MovingEntity, id, x + (vector.X |> int32), y) then
+                    model.world.MoveEntity(entity |> MovingEntity, id, x + (vector.X |> int32), y + (vector.Y |> int32))
+                    |> ignore
+                else if model.world.MoveEntity(entity |> MovingEntity, id, x, y + (vector.Y |> int32)) then
+                    model.world.MoveEntity(entity |> MovingEntity, id, x + (vector.X |> int32), y + (vector.Y |> int32))
+                    |> ignore
         { model with counter = newCounter } |> GameIsRunning, Cmd.none
 
 let updateMainMenu msg (model:Model.Model) =
     match msg with
     | StartGame ->
         model.assets.sounds.["bang"].Play() |> ignore
+        let worldSize =
+            Vector2(
+                float32 InGameModel.Empty.world.Width,
+                float32 InGameModel.Empty.world.Height)
         let inGameModel =
             {InGameModel.Empty with
                 camera = {
-                    position = Vector2(worldWidth / 2.f, worldHeight / 2.f)
-                    bounds = Rectangle(0, 0, worldWidth |> int, worldHeight |> int)
+                    position = 
+                        worldSize * 0.5f
+                    zoom = 10.0f
+                    bounds = Rectangle(0, 0, worldSize.X |> int, worldSize.Y |> int)
                 }
             }
         let maxI = 100 - 1
@@ -81,7 +126,7 @@ let updateMainMenu msg (model:Model.Model) =
                         yield
                             WorkerAnt,
                             id,
-                            Vector2(10.0f, 20.0f)
+                            Vector2(1.0f, 1.0f)
                     | _ -> ()
             |]
         for i in 0..maxI do

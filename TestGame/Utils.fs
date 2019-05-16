@@ -55,3 +55,18 @@ let getInvertedDirection direction =
     | Down -> Up
     | Right -> Left
 
+type Camera with
+    member self.Translate vec =
+        { self with position = Vector2.Add(vec, self.position) }
+
+    static member Transformation camera width height =
+        Matrix.CreateTranslation(Vector3(-camera.position, 0.f)) *
+        Matrix.CreateScale(camera.zoom) *
+        Matrix.CreateTranslation(Vector3(width / 2 |> float32, height / 2 |> float32, 0.f))
+
+type Zoom with
+    static member toValue zoomState =
+        match zoomState with
+        | Near -> 8
+        | Middle -> 3
+        | Far -> 1

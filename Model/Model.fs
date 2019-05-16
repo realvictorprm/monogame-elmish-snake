@@ -46,13 +46,14 @@ type ViewSelection = Point * Point
 type Camera = {
     position: Vector2
     bounds: Rectangle
+    zoom: float32
 } with
-    member self.Translate vec =
-        { self with position = Vector2.Add(vec, self.position) }
-
     static member Default =
-        { position = Vector2.Zero 
-          bounds = Rectangle(0, 0, 100, 100) }
+        {
+            position = Vector2.Zero 
+            bounds = Rectangle(0, 0, 100, 100)
+            zoom = 1.f
+        }
 
 // This class really needs tests to ensure the internal datastructure behaves correctly!
 type FastIdStore<'T>() =
@@ -178,6 +179,10 @@ type World(worldWidth, worldHeight) =
         for kind in MovingEntity.Cases do
             movableEntityStore.[kind] <- FastIdStore()
 
+    member __.Width = worldWidth
+    
+    member __.Height = worldHeight
+
     member __.AddEntity(kind:EntityKind, x, y, data:EntityData) : EntityId option =
         if grid.Occupied(x, y) |> not then
             match kind, data with
@@ -226,7 +231,7 @@ type World(worldWidth, worldHeight) =
     member __.MoveEntity(kind:EntityKind, id:EntityId, x, y) =
         match grid.TryGetPositionFromEntityKindWithId(kind, id) with
         | Some(oldX, oldY) ->
-            if(x >= worldWidth || x < 0 || y >= worldHeight || y < 0) &&
+            if(x >= worldWidth || x < 0 || y >= worldHeight || y < 0) ||
               grid.Occupied(x, y) then
                 false
             else
@@ -269,8 +274,14 @@ type World(worldWidth, worldHeight) =
                     failwith "An object has no position."
         }
 
+type Zoom =
+    | Near
+    | Middle
+    | Far
+
 type ViewModel = {
     selection: ViewSelection option
+    zoomState : Zoom
 }
 
 type InGameModel = {
@@ -286,6 +297,7 @@ type InGameModel = {
         camera = Camera.Default
         viewModel = {
             selection = None
+            zoomState = Near
         }
         counter = 0
         movingEntities = [||]
@@ -302,6 +314,8 @@ type UserInteraction =
     | CameraDown
     | CameraLeft
     | CameraRight
+    | CameraZoomIn
+    | CameraZoomOut
     | DoExitGame
     
 type Collision =

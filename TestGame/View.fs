@@ -15,89 +15,72 @@ open UserInterfaceBase.Model
 open UserInterfaceBase
 open Microsoft.Xna.Framework.Input
 
-
-(*
-
-| GameIsRunning ->
-    let elements =
-        let borderThickness = 1
-        [
-            Border(Color.Gray, borderThickness,
-                Button({
-                    rectangle = rect 0 0 200 50
-                    color = Color.Green
-                    content = Some {
-                        color = Color.Black
-                        text = "Gesamtameisen: XX"
-                        }
-                    }, 
-                    fun _ _ _ -> ()
-                )
-            )
-            Border(Color.Gray, borderThickness,
-                Button({
-                    rectangle = rect 0 0 200 50
-                    color = Color.DarkGreen
-                    content = Some {
-                        color = Color.Black
-                        text = "Anzahl Arbeiterameisen: XX"
-                        }
-                    },
-                    fun _ _ _ -> ()
-                )
-            )
-            Border(Color.Gray, borderThickness,
-                Button({
-                    rectangle = rect 0 0 200 50
-                    color = Color.DarkGreen
-                    content = Some {
-                        color = Color.Black
-                        text = "Anzahl Kaempferameisen: XX"
-                        }
-                    },
-                    fun _ _ _ -> ()
-                )
-            )
-            Border(Color.Gray, borderThickness,
-                Button({
-                    rectangle = rect 0 0 200 50
-                    color = Color.DarkGreen
-                    content = Some {
-                        color = Color.Black
-                        text = "Anzahl Forscherameisen: XX"
-                        }
-                    },
-                    fun _ _ _ -> ()
-                )
-            )
-        ]
-    Border(Color.Black,
-        2,
-        VerticalListBox({ X=0; Y=0}, elements)
-    )
-    |> Utils.View.createViewableFromTree "font" 15.
-    |> List.append [
-        onkeydown Input.Keys.Escape (fun () -> exit 0)
-    ]
-*)
-
 let getAntColor = function
-    | WorkerAnt _ -> Color.Brown
-    | FightingAnt _ -> Color.Red
+    | WorkerAnt _ -> Color.Red
+    | FightingAnt _ -> Color.Green
     | ResearchAnt _ -> Color.Blue
 
+type LineKind =
+    | Horizontal of x0:float32 * x1:float32 * y:float32
+    | Vertical of y0:float32 * y1:float32 * x:float32
 
-let drawInGameScreen model assets inputs (spriteBatch:SpriteBatch) =
-    
+let drawInGameScreen (model:InGameModel) assets inputs (spriteBatch:SpriteBatch) =
+    let drawLine lineKind thickness =
+        match lineKind with
+        | Horizontal(x0, x1, y) ->
+            spriteBatch.Draw(
+                assets.whiteTexture,
+                Vector2(min x0 x1, y),
+                Nullable(),
+                Color.Gray,
+                0.f,
+                Vector2.Zero,
+                Vector2(abs(x1 - x0), thickness),
+                Graphics.SpriteEffects.None,
+                0.f)
+        | Vertical(y0, y1, x) ->
+            spriteBatch.Draw(
+                assets.whiteTexture,
+                Vector2(x, min y0 y1),
+                Nullable(),
+                Color.Gray,
+                0.f,
+                Vector2.Zero,
+                Vector2(thickness, abs(y1 - y0)),
+                Graphics.SpriteEffects.None,
+                0.f)
+
+    let offset =
+        Point.Zero
+        //((model.camera.position - vec2 worldWidth worldHeight / 2.f) * -1.0f).ToPoint()
+    let gridDensity, thickness =
+        match model.viewModel.zoomState with
+        | Near -> 1, 0.25f
+        | Middle -> 3, 0.5f
+        | Far -> 8, 1.f
+    for x=0 to model.world.Width do
+         if x%gridDensity=0 then
+           //drawLine(Vertical(0.f - 0.5f, float32 model.world.Height + 0.5f, float32 x - 0.5f))
+           drawLine(Vertical(0.f, float32 model.world.Height, float32 x)) thickness
+    for y=0 to model.world.Height do
+         if y%gridDensity = 0  then
+            //drawLine(LineKind.Horizontal(0.f - 0.5f, float32 model.world.Width + 0.5f, float32 y - 0.5f))
+            drawLine(LineKind.Horizontal(0.f, float32 model.world.Width, float32 y)) thickness
+
     for kind in MovingEntity.Cases do
         let currentColor = getAntColor kind
         for (id, _, x, y) in model.world.MovingEntitiesAsListWithPos kind do
             let pos = Point(x, y)
-            spriteBatch.Draw(assets.whiteTexture,
-                Rectangle((pos.ToVector2() - (model.camera.position - vec2 worldWidth worldHeight / 2.f)).ToPoint(),
-                    Point(20, 20)
-                ),
-                currentColor)
+            spriteBatch.Draw(
+                assets.whiteTexture,
+                pos.ToVector2(),
+                Nullable(),
+                currentColor,
+                0.f,
+                Vector2.Zero,
+                vec2 1.f 1.f,
+                Graphics.SpriteEffects.None,
+                0.f)
             
     
     //for antHild in model.antHill do
@@ -147,10 +130,10 @@ module GUI =
 
     let private inGameMap width height inGameModel =
         CustomElement(rect 0 0 width height, fun currentOffset assets _ spriteBatch ->
-            spriteBatch.Draw(assets.whiteTexture, Rectangle(currentOffset.ToPoint, Point(width, height)), Color.Green)
+            spriteBatch.Draw(assets.whiteTexture, Rectangle(currentOffset.ToPoint, Point(width, height)), Color.LightSeaGreen)
             let antHillColor = Color.Yellow
             let worldPosToMapPos pos =
-                vec2 worldWidth worldHeight
+                Vector2(float32 inGameModel.world.Width, float32 inGameModel.world.Height)
                 |> Vector2.divide pos
                 |> Vector2.multiply (Vector2(width |> float32, height |> float32))
                 |> Vector2.add (Vector2(currentOffset.X |> float32, currentOffset.Y |> float32))
@@ -180,6 +163,9 @@ module GUI =
         let countElementsHeight = defaultHeight
         let defaultWidth = 200
         let IDK_Height = 300
+        let opacity = 200
+        let applyOpacity (color:Color) =
+            Color(color, opacity)
         horizontalListBox Offset.Zero [
             CustomElement(rect 0 0 0 0, fun _ assets _ spriteBatch ->
                 spriteBatch.End()
@@ -190,14 +176,14 @@ module GUI =
                     verticalListBox Offset.Zero [
                         text {
                             rectangle = rect 0 0 defaultWidth countElementsHeight
-                            color = Color.LightGreen
+                            color = Color.LightGreen |> applyOpacity
                             content = Some {
                                 color = Color.Black
                                 text = sprintf "Gesamtameisen: %d" inGameModel.world.MovingEntityCompleteCount }
                         } |> defaultBorder
                         text {
                             rectangle = rect 0 0 defaultWidth countElementsHeight
-                            color = Color.Green
+                            color = Color.Green |> applyOpacity
                             content = Some {
                                 color = Color.Black
                                 text =
@@ -208,7 +194,7 @@ module GUI =
                         } |> defaultBorder
                         text {
                             rectangle = rect 0 0 defaultWidth countElementsHeight
-                            color = Color.Green
+                            color = Color.Green |> applyOpacity
                             content = Some {
                                 color = Color.Black
                                 text = 
@@ -219,7 +205,7 @@ module GUI =
                         } |> defaultBorder
                         text {
                             rectangle = rect 0 0 defaultWidth countElementsHeight
-                            color = Color.Green
+                            color = Color.Green |> applyOpacity
                             content = Some {
                                 color = Color.Black
                                 text =
@@ -231,7 +217,7 @@ module GUI =
                     ]
                     text {
                         rectangle = rect 0 0 defaultWidth countElementsHeight
-                        color = Color.Purple
+                        color = Color.Purple |> applyOpacity
                         content = Some {
                             color = Color.Black
                             text = "FOOOO: XX" }
@@ -242,7 +228,7 @@ module GUI =
                     Color.Transparent
                 text {
                     rectangle = rect 0 0 IDK_Height IDK_Height
-                    color = Color.Yellow
+                    color = Color.Yellow |> applyOpacity
                     content = Some {
                         color = Color.Black
                         text = "IDK"
@@ -255,7 +241,7 @@ module GUI =
             verticalListBox Offset.Zero [
                 text {
                     rectangle = rect 0 0 defaultWidth defaultHeight
-                    color = Color.LightGoldenrodYellow
+                    color = Color.LightGoldenrodYellow |> applyOpacity
                     content = Some {
                         text = "Forschungspunkte"
                         color = Color.Black }
@@ -281,21 +267,38 @@ let viewAndInteractions model dispatch =
             // because the camera translation should only affect the in game world.
             OnDraw(fun assets input spriteBatch ->
                 spriteBatch.End()
+                spriteBatch.GraphicsDevice.Clear Color.LightSkyBlue
                 let transformationMatrix = 
-                    Matrix.Identity
-                    //Matrix.Identity *
-                    //Matrix.CreateTranslation(-float32 inGameModel.camera.position.X, -float32 inGameModel.camera.position.Y, 0.f)
+                    Camera.Transformation inGameModel.camera model.screenSize.X model.screenSize.Y
+                    // Matrix.Identity *
+                    // Matrix.CreateTranslation(-float32 inGameModel.camera.position.X + float32 model.screenSize.X / 2.f, -float32 inGameModel.camera.position.Y + float32 model.screenSize.Y / 2.f, 0.f)
+                    // Matrix.CreateScale(3.0f) 
                     |> Nullable.op_Implicit
-                // spriteBatch.Begin(transformMatrix = transformationMatrix)
-                spriteBatch.Begin()
+                spriteBatch.Begin(transformMatrix = transformationMatrix)
+                //spriteBatch.Begin()
                 drawInGameScreen inGameModel assets input spriteBatch
-                spriteBatch.DrawString(assets.fonts.["font"], sprintf "Camera pos %A" inGameModel.camera, Vector2(100.f, 300.f), Color.Black)
+                // spriteBatch.DrawString(assets.fonts.["font"], sprintf "Camera pos %A" inGameModel.camera, Vector2(100.f, 300.f), Color.Black)
             )
         let inputHandling =
             [   whilekeydown Input.Keys.W (fun () -> CameraUp |> UserInteraction |> InGameMsg |> dispatch)
                 whilekeydown Input.Keys.S (fun () -> CameraDown |> UserInteraction |> InGameMsg |> dispatch)
                 whilekeydown Input.Keys.A (fun () -> CameraLeft |> UserInteraction |> InGameMsg |> dispatch)
                 whilekeydown Input.Keys.D (fun () -> CameraRight |> UserInteraction |> InGameMsg |> dispatch)
+                onkeydown Input.Keys.Escape (fun () -> DoExitGame |> UserInteraction |> InGameMsg |> dispatch)
+                OnUpdate(fun input ->
+                    let diff = input.lastMouseState.ScrollWheelValue - input.mouseState.ScrollWheelValue
+                    if diff < 0 then
+                        CameraZoomIn
+                        |> UserInteraction
+                        |> InGameMsg
+                        |> dispatch
+                    else if diff > 0 then
+                        CameraZoomOut
+                        |> UserInteraction
+                        |> InGameMsg
+                        |> dispatch
+                    
+                )
                 OnUpdate(fun input ->
                     if input.mouseState.LeftButton = ButtonState.Pressed &&
                         input.lastMouseState.LeftButton = ButtonState.Released then
@@ -304,14 +307,14 @@ let viewAndInteractions model dispatch =
                         |> dispatch
                     elif input.lastMouseState.LeftButton = ButtonState.Pressed &&
                         input.mouseState.LeftButton = ButtonState.Released then
-                        match inGameModel.selection with
+                        match inGameModel.viewModel.selection with
                         | Some _ ->
                             SelectionEnded(Point(input.mouseState.X, input.mouseState.Y))
                             |> InGameMsg
                             |> dispatch
                         | None -> ()
                     elif input.mouseState.LeftButton = ButtonState.Pressed then
-                        match inGameModel.selection with
+                        match inGameModel.viewModel.selection with
                         | Some _ ->
                             SelectionOngoing(Point(input.mouseState.X, input.mouseState.Y))
                             |> InGameMsg
