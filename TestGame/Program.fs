@@ -20,7 +20,6 @@ let main argv =
             PipelineFont ("font", "./content/font") // the font used in the game needs to be loaded. there is no built-in font.
             PipelineSound ("bang", "./content/Logo_hit")
         ]
-        stretchMode = StretchMode.Blended
     }
     System.Runtime.GCSettings.LatencyMode <- System.Runtime.GCLatencyMode.SustainedLowLatency
     // System.GC.TryStartNoGCRegion(2. ** 20. |> int64, true) |> ignore

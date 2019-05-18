@@ -104,15 +104,13 @@ module ExternalCode =
             spriteBatch.Draw(loadedAssets.whiteTexture, rect x y width height, color)
 
     /// Run the given event if the left mouse button has just been pressed in the specified area
-    let onclickWith event (width, height) (x, y) =
-        OnUpdate (fun inputs ->
-            if (inputs.mouseState.X, inputs.mouseState.Y) ||> isInside x y width height then
-                if inputs.mouseState.LeftButton = ButtonState.Pressed 
-                && inputs.lastMouseState.LeftButton <> ButtonState.Pressed then
-                    event inputs)
+    let onclickWith event (width, height) (x, y) (inputs:Inputs) =
+        if (inputs.mouseState.X, inputs.mouseState.Y) ||> isInside x y width height then
+            if inputs.mouseState.LeftButton = ButtonState.Pressed 
+            && inputs.lastMouseState.LeftButton <> ButtonState.Pressed then
+                event inputs
 
-    let text font (prefFontSize: float) colour (ox: float, oy: float) (text: string) (x, y) width =
-        OnDraw (fun loadedAssets _ spriteBatch -> 
+    let text font (prefFontSize: float) colour (ox: float, oy: float) (text: string) (x, y) width loadedAssets _ (spriteBatch:SpriteBatch) =
             let font = loadedAssets.fonts.[font]
             let measured = font.MeasureString (text)
             let scale = 
@@ -125,7 +123,7 @@ module ExternalCode =
                     let v = float32 prefFontSize / measured.Y in Vector2(v, v)
             let origin = Vector2 (float32 ox * measured.X * scale.X, float32 oy * measured.Y * scale.Y)
             let position = Vector2.Add(origin, vector2 x y)
-            spriteBatch.DrawString (font, text, position, colour, 0.f, Vector2.Zero, scale, SpriteEffects.None, 0.f))
+            spriteBatch.DrawString (font, text, position, colour, 0.f, Vector2.Zero, scale, SpriteEffects.None, 0.f)
 
 open Model
 open ExternalCode
@@ -147,93 +145,152 @@ open ExternalCode
 //        )
 //    )
 
-let mkTextPanel data font fontSize offset =
+/// Draw a coloured rect
+let inline colour colour (width, height) (x, y) loadedAssets _ (spriteBatch:SpriteBatch) =
+        spriteBatch.Draw(loadedAssets.whiteTexture, rect x y width height, colour)
+
+let drawTextPanel data font fontSize offset assets input (spriteBatch:SpriteBatch) =
     let width = data.rectangle.Width
     let height = data.rectangle.Height
     let x = data.rectangle.X + offset.X
     let y = data.rectangle.Y + offset.Y
-    [
-        yield colour data.color (width, height) (x, y)
-        match data.content with
-        | Some info ->
-            yield
-                text font fontSize info.color (-0.5, -0.5) info.text (x + width/2, y+height/2) width
-        | None -> ()
-    ]
+    colour data.color (width, height) (x, y) assets input spriteBatch
+    match data.content with
+    | Some info -> text font fontSize info.color (-0.5, -0.5) info.text (x + width/2, y+height/2) width assets input spriteBatch
+    | None -> ()
 
-let mkButton data event font fontSize offset =
+let drawButton data event font fontSize offset assets input spriteBatch =
     let width = data.rectangle.Width
     let height = data.rectangle.Height
     let x = data.rectangle.X + offset.X
     let y = data.rectangle.Y + offset.Y
-    [
-        colour data.color (width, height) (x, y)
-        onclickWith event (width, height) (x, y)
-    ] @
-    [
-        match data.content with
-        | Some info ->
-            yield
-                text font fontSize info.color (-0.5, -0.5) info.text (x + width/2, y+height/2) width
-        | None -> ()
-    ]
+    colour data.color (width, height) (x, y) assets input spriteBatch
+    match data.content with
+    | Some info ->
+        text font fontSize info.color (-0.5, -0.5) info.text (x + width/2, y+height/2) width assets input spriteBatch
+    | None -> ()
 
-let createViewableFromTree defaultFontName defaultFontSize tree =
-    let rec drawElement elements offset =
-        match elements with
-        | Model.Button(data, fn) ->
-            mkButton data fn defaultFontName defaultFontSize offset
-        | Model.Text(data) ->
-            mkTextPanel data defaultFontName defaultFontSize offset
-        | Model.Border(color, thickness, inner) ->
-                
-            // Non in place border
-            let width = inner.Rectangle.Width + thickness * 2
-            let height = inner.Rectangle.Height + thickness * 2
-            let newOffset =
-                let x = inner.Rectangle.X + thickness
-                let y = inner.Rectangle.Y + thickness
-                { X=x + offset.X; Y=y + offset.Y }
-                
-            // In-place border
-            //let width = inner.Rectangle.Width
-            //let height = inner.Rectangle.Height
-            //let newOffset =
-            //    let x = inner.Rectangle.X + thickness
-            //    let y = inner.Rectangle.Y + thickness
-            //    { X=x + offset.X; Y=y + offset.Y }
-            [   yield colour color (width, height) (inner.Rectangle.X + offset.X, inner.Rectangle.Y + offset.Y)
-                yield! drawElement inner newOffset
-            ]
-        | Model.VerticalListBox(rect, elements) ->
-            let newOffset = {
-                X = offset.X + rect.X
-                Y = offset.Y + rect.Y
-            }
-            elements
-            |> List.fold(fun (acc, offset) element ->
-                [   yield! acc
-                    yield! drawElement element offset ], {
-                    X = offset.X // + element.Rectangle.Width
-                    Y = offset.Y + element.Rectangle.Height }
-            ) ([], newOffset)
-            |> fst
-        | Model.HorizontalListBox(rect, elements) ->
-            let newOffset = {
-                X = offset.X + rect.X
-                Y = offset.Y + rect.Y
-            }
-            elements
-            |> List.fold(fun (acc, offset) element ->
-                [   yield! acc
-                    yield! drawElement element offset ], {
-                    X = offset.X + element.Rectangle.Width
-                    Y = offset.Y } //+ element.Rectangle.Height }
-            ) ([], newOffset)
-            |> fst
-        | Model.CustomElement(_, cstmDraw) ->
-            [ OnDraw(cstmDraw offset) ]
-    drawElement tree { X=0;Y=0 }
+let inputHandlingButton data event offset input =
+    let width = data.rectangle.Width
+    let height = data.rectangle.Height
+    let x = data.rectangle.X + offset.X
+    let y = data.rectangle.Y + offset.Y
+    onclickWith event (width, height) (x, y) input
+
+let drawElementTreeWithInput defaultFontName defaultFontSize tree =
+    [
+        OnUpdate(fun input ->
+            let rec handleInput elements offset =
+                match elements with
+                | Model.Button(data, fn) ->
+                    inputHandlingButton 
+                        data fn offset
+                        input
+                | Model.Text(data) -> ()
+                | Model.Border(color, thickness, inner) ->
+                    let newOffset =
+                        let x = inner.Rectangle.X + thickness
+                        let y = inner.Rectangle.Y + thickness
+                        { X=x + offset.X; Y=y + offset.Y }
+                    handleInput inner newOffset
+                | Model.VerticalListBox(rect, elements) ->
+                    let newOffset = {
+                        X = offset.X + rect.X
+                        Y = offset.Y + rect.Y
+                    }
+                    elements
+                    |> List.fold(fun offset element ->
+                            handleInput element offset
+                            {
+                                X = offset.X
+                                Y = offset.Y + element.Rectangle.Height
+                            }
+                    ) newOffset
+                    |> ignore
+                | Model.HorizontalListBox(rect, elements) ->
+                    let newOffset = {
+                        X = offset.X + rect.X
+                        Y = offset.Y + rect.Y
+                    }
+                    elements
+                    |> List.fold(fun offset element ->
+                            handleInput element offset
+                            {
+                                X = offset.X + element.Rectangle.Width
+                                Y = offset.Y
+                            }
+                    ) newOffset
+                    |> ignore
+                | Model.CustomElement(_, _) -> ()
+            handleInput tree { X=0;Y=0 }
+        )
+        OnDraw(fun assets input spriteBatch ->
+            spriteBatch.Begin()
+            let rec drawElement elements offset =
+                match elements with
+                | Model.Button(data, fn) ->
+                    drawButton data fn defaultFontName defaultFontSize offset 
+                        assets
+                        input
+                        spriteBatch
+                | Model.Text(data) ->
+                    drawTextPanel data defaultFontName defaultFontSize offset
+                        assets
+                        input
+                        spriteBatch
+                | Model.Border(color, thickness, inner) ->
+                    // Non in place border
+                    let width = inner.Rectangle.Width + thickness * 2
+                    let height = inner.Rectangle.Height + thickness * 2
+                    let newOffset =
+                        let x = inner.Rectangle.X + thickness
+                        let y = inner.Rectangle.Y + thickness
+                        { X=x + offset.X; Y=y + offset.Y }
+                    colour 
+                        color (width, height) (inner.Rectangle.X + offset.X, inner.Rectangle.Y + offset.Y)
+                        assets
+                        input
+                        spriteBatch
+                    drawElement inner newOffset
+                | Model.VerticalListBox(rect, elements) ->
+                    let newOffset = {
+                        X = offset.X + rect.X
+                        Y = offset.Y + rect.Y
+                    }
+                    elements
+                    |> List.fold(fun offset element ->
+                            drawElement element offset
+
+                            {
+                                X = offset.X
+                                Y = offset.Y + element.Rectangle.Height
+                            }
+                    ) newOffset
+                    |> ignore
+                | Model.HorizontalListBox(rect, elements) ->
+                    let newOffset = {
+                        X = offset.X + rect.X
+                        Y = offset.Y + rect.Y
+                    }
+                    elements
+                    |> List.fold(fun offset element ->
+                            drawElement element offset
+                            {
+                                X = offset.X + element.Rectangle.Width
+                                Y = offset.Y
+                            }
+                    ) newOffset
+                    |> ignore
+                | Model.CustomElement(_, cstmDraw) ->
+                    cstmDraw
+                        offset 
+                        assets
+                        input
+                        spriteBatch
+            drawElement tree { X=0;Y=0 }
+            spriteBatch.End()
+        )
+    ]
 
 /// Run the given event if the left mouse button has just been pressed in the specified area
 let onhover (width, height) (x, y) event =

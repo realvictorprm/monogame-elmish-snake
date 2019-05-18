@@ -130,11 +130,11 @@ type GameLoop (config: GameConfig, startProgramFn) as this =
         lastTime <- clock.ElapsedMilliseconds
         Option.iter this.GraphicsDevice.Clear config.clearColour
 
-        match config.stretchMode with
-        | Blended -> spriteBatch.Begin ()
-        | PointClamp -> spriteBatch.Begin (SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp)
+        //match config.stretchMode with
+        //| Blended -> spriteBatch.Begin ()
+        //| PointClamp -> spriteBatch.Begin (SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp)
 
         for drawFunc in drawable do drawFunc assets inputs spriteBatch
 
-        spriteBatch.End ()
+        //spriteBatch.End ()
         printfn "%d" (clock.ElapsedMilliseconds - lastTime)

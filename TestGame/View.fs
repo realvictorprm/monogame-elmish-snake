@@ -126,7 +126,7 @@ module GUI =
         let x = screenSize.X / 2 - listBox.Rectangle.Width / 2
         let y = screenSize.Y / 2 - listBox.Rectangle.Height / 2
         VerticalListBox({X=x;Y=y}, elements)
-        |> createViewableFromTree "font" 20.
+        |> drawElementTreeWithInput "font" 20.
 
     let private inGameMap width height inGameModel =
         CustomElement(rect 0 0 width height, fun currentOffset assets _ spriteBatch ->
@@ -250,7 +250,7 @@ module GUI =
             ]
             possibleSelectionElement inGameModel
             ]
-        |> createViewableFromTree "font" 15.
+        |> drawElementTreeWithInput "font" 15.
 
 let viewAndInteractions model dispatch =
     match model.gameState with
@@ -262,64 +262,58 @@ let viewAndInteractions model dispatch =
         @ inputHandling
         
     | GameIsRunning inGameModel ->
-        let drawGame =
+        let drawGame assets input (spriteBatch:SpriteBatch) =
             // In a seperate draw batch the in game world is drawn
             // because the camera translation should only affect the in game world.
-            OnDraw(fun assets input spriteBatch ->
-                spriteBatch.End()
                 spriteBatch.GraphicsDevice.Clear Color.LightSkyBlue
                 let transformationMatrix = 
                     Camera.Transformation inGameModel.camera model.screenSize.X model.screenSize.Y
-                    // Matrix.Identity *
-                    // Matrix.CreateTranslation(-float32 inGameModel.camera.position.X + float32 model.screenSize.X / 2.f, -float32 inGameModel.camera.position.Y + float32 model.screenSize.Y / 2.f, 0.f)
-                    // Matrix.CreateScale(3.0f) 
                     |> Nullable.op_Implicit
                 spriteBatch.Begin(transformMatrix = transformationMatrix)
-                //spriteBatch.Begin()
                 drawInGameScreen inGameModel assets input spriteBatch
-                // spriteBatch.DrawString(assets.fonts.["font"], sprintf "Camera pos %A" inGameModel.camera, Vector2(100.f, 300.f), Color.Black)
-            )
+                spriteBatch.End()
         let inputHandling =
+            let handleZoom input =
+                let diff = input.lastMouseState.ScrollWheelValue - input.mouseState.ScrollWheelValue
+                if diff < 0 then
+                    CameraZoomIn
+                    |> UserInteraction
+                    |> InGameMsg
+                    |> dispatch
+                else if diff > 0 then
+                    CameraZoomOut
+                    |> UserInteraction
+                    |> InGameMsg
+                    |> dispatch
+            let handleSelection input =
+                if input.mouseState.LeftButton = ButtonState.Pressed &&
+                    input.lastMouseState.LeftButton = ButtonState.Released then
+                    SelectionStarted(Point(input.mouseState.X, input.mouseState.Y))
+                    |> InGameMsg
+                    |> dispatch
+                elif input.lastMouseState.LeftButton = ButtonState.Pressed &&
+                    input.mouseState.LeftButton = ButtonState.Released then
+                    match inGameModel.viewModel.selection with
+                    | Some _ ->
+                        SelectionEnded(Point(input.mouseState.X, input.mouseState.Y))
+                        |> InGameMsg
+                        |> dispatch
+                    | None -> ()
+                elif input.mouseState.LeftButton = ButtonState.Pressed then
+                    match inGameModel.viewModel.selection with
+                    | Some _ ->
+                        SelectionOngoing(Point(input.mouseState.X, input.mouseState.Y))
+                        |> InGameMsg
+                        |> dispatch
+                    | None -> ()
             [   whilekeydown Input.Keys.W (fun () -> CameraUp |> UserInteraction |> InGameMsg |> dispatch)
                 whilekeydown Input.Keys.S (fun () -> CameraDown |> UserInteraction |> InGameMsg |> dispatch)
                 whilekeydown Input.Keys.A (fun () -> CameraLeft |> UserInteraction |> InGameMsg |> dispatch)
                 whilekeydown Input.Keys.D (fun () -> CameraRight |> UserInteraction |> InGameMsg |> dispatch)
                 onkeydown Input.Keys.Escape (fun () -> DoExitGame |> UserInteraction |> InGameMsg |> dispatch)
                 OnUpdate(fun input ->
-                    let diff = input.lastMouseState.ScrollWheelValue - input.mouseState.ScrollWheelValue
-                    if diff < 0 then
-                        CameraZoomIn
-                        |> UserInteraction
-                        |> InGameMsg
-                        |> dispatch
-                    else if diff > 0 then
-                        CameraZoomOut
-                        |> UserInteraction
-                        |> InGameMsg
-                        |> dispatch
-                    
-                )
-                OnUpdate(fun input ->
-                    if input.mouseState.LeftButton = ButtonState.Pressed &&
-                        input.lastMouseState.LeftButton = ButtonState.Released then
-                        SelectionStarted(Point(input.mouseState.X, input.mouseState.Y))
-                        |> InGameMsg
-                        |> dispatch
-                    elif input.lastMouseState.LeftButton = ButtonState.Pressed &&
-                        input.mouseState.LeftButton = ButtonState.Released then
-                        match inGameModel.viewModel.selection with
-                        | Some _ ->
-                            SelectionEnded(Point(input.mouseState.X, input.mouseState.Y))
-                            |> InGameMsg
-                            |> dispatch
-                        | None -> ()
-                    elif input.mouseState.LeftButton = ButtonState.Pressed then
-                        match inGameModel.viewModel.selection with
-                        | Some _ ->
-                            SelectionOngoing(Point(input.mouseState.X, input.mouseState.Y))
-                            |> InGameMsg
-                            |> dispatch
-                        | None -> ()
+                    handleZoom input
+                    handleSelection input
                 )]
         
         [
@@ -333,10 +327,14 @@ let viewAndInteractions model dispatch =
                     |> dispatch)
             // Check the input handling
             yield! inputHandling
-            // Draw the world
-            yield drawGame
-            // Draw the GUI
-            yield! GUI.inGame model.screenSize inGameModel dispatch
+            yield
+                OnDraw(fun assets input spriteBatch ->
+                    // Draw the world
+                    drawGame assets input spriteBatch
+                )
+            yield!
+                // Draw the GUI
+                GUI.inGame model.screenSize inGameModel dispatch
         ]
 
     | GameOver ->
@@ -355,6 +353,6 @@ let viewAndInteractions model dispatch =
                     }
                 }
             ]
-        |> createViewableFromTree "font" 15.
+        |> drawElementTreeWithInput "font" 15.
         |> List.append inputs
 

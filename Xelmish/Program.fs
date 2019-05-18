@@ -22,6 +22,5 @@ let runSimpleGameLoop assetsToLoad (windowWidth, windowHeight) clearColour (prog
         resolution = Windowed (windowWidth, windowHeight)
         clearColour = Some clearColour
         mouseVisible = true
-        assetsToLoad = assetsToLoad
-        stretchMode = Blended }
+        assetsToLoad = assetsToLoad }
     runGameLoop config program

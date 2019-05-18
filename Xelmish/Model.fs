@@ -29,8 +29,6 @@ type GameConfig = {
     mouseVisible: bool
     /// All assets (like images, fonts etc) that the game will use
     assetsToLoad: Loadable list
-    /// how the spriteBatch should stretch textures and fonts. controls the blended/pixellated appearance of things
-    stretchMode: StretchMode
 } 
 /// Specifies the resolution to run the game at. For now, this is set once at initiation.
 /// Also, presently fullscreen is not supported.
